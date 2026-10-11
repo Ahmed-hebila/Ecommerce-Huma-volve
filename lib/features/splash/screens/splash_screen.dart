@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme.dart';
+import '../../auth/data/auth_service.dart';
 import '../../auth/login/screens/login_screen.dart';
+import '../../main_navigation/screens/main_navigation_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -17,12 +19,17 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _navigateToNext() async {
+    // Check the saved session while the splash is showing.
+    final isLoggedInFuture = AuthService.instance.isLoggedIn();
     await Future.delayed(const Duration(seconds: 2));
+    final isLoggedIn = await isLoggedInFuture;
     if (mounted) {
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const LoginScreen(),
+          pageBuilder: (context, animation, secondaryAnimation) => isLoggedIn
+              ? const MainNavigationScreen()
+              : const LoginScreen(),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },
