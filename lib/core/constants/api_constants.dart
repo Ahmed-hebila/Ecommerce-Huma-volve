@@ -14,6 +14,14 @@ class ApiConstants {
   static const String users = 'users/';
   static const String isEmailAvailable = 'users/is-available';
 
+  // Home
+  static const String categories = 'categories';
+  static const String products = 'products';
+
+  /// `categories/{id}/products`
+  static String categoryProducts(int categoryId) =>
+      '$categories/$categoryId/$products';
+
   /// The API requires an avatar URL when creating a user.
   static const String defaultAvatar = 'https://i.imgur.com/LDOO4Qs.jpg';
 }
