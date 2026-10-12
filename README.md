@@ -46,6 +46,36 @@ You can log in with the API's sample user:
 - Email: `john@mail.com`
 - Password: `changeme`
 
+## Day 2 Task – Home feature using the API + State Management (Cubit)
+
+The home screen now gets its data from the API and is managed with **Cubit** (`flutter_bloc`).
+
+| Data | Endpoint |
+| --- | --- |
+| Categories | `GET categories` |
+| Products of a category | `GET categories/{id}/products` |
+
+### How it works
+
+- `HomeService` talks to the API (uses the shared `ApiClient`) and returns `CategoryModel` / `ProductModel` lists.
+- `HomeCubit` is the only thing the UI talks to. `loadHomeData()` loads the categories, then the products of the first category. `getProducts(categoryId)` loads the products when a category is tapped.
+- States (`home_state.dart`): `HomeInitial`, `CategoriesLoading / CategoriesSuccess / CategoriesError`, `ProductsLoading / ProductsSuccess / ProductsError`.
+- `BlocProvider` (in `MainNavigationScreen`) creates the cubit for the home screen.
+- Two `BlocBuilder`s with `buildWhen`: one rebuilds the categories only on categories states, the other rebuilds the products grid only on products states.
+- Tapping a category shows its products, with a loader, an empty message and an error message with "Try again". Pull down to refresh.
+- Product details show the API images (swipe between them), category, price and description.
+
+```
+lib/features/home/
+├── cubit/home_cubit.dart
+├── cubit/home_state.dart
+├── models/category_model.dart
+├── models/product_model.dart
+├── services/home_service.dart
+├── screens/home_screen.dart
+└── widgets/
+```
+
 ## Run
 
 ```bash
