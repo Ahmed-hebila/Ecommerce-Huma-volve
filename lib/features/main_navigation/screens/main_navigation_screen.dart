@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../core/network/api_client.dart';
+import '../../../core/di/injection.dart';
 import '../../../core/theme.dart';
-import '../../home/cubit/home_cubit.dart';
-import '../../home/screens/home_screen.dart';
-import '../../home/services/home_service.dart';
+import '../../home/presentation/screens/home_screen.dart';
 import '../../cart/screens/cart_screen.dart';
-import '../../profile/screens/profile_screen.dart';
+import '../../profile/presentation/screens/profile_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -24,7 +22,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       // BlocProvider creates the HomeCubit for the home screen
       // and closes it automatically when the screen is removed.
       BlocProvider(
-        create: (context) => HomeCubit(HomeService(ApiClient.instance)),
+        create: (context) => Injection.homeCubit(),
         child: const HomeScreen(),
       ),
       const CartScreen(),
