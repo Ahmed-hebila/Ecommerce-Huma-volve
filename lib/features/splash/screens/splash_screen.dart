@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme.dart';
 import '../../../core/di/injection.dart';
+import '../../../core/routing/app_routes.dart';
 import '../../auth/presentation/screens/login_screen.dart';
 import '../../main_navigation/screens/main_navigation_screen.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+  const SplashScreen({super.key, this.deepLinkProductId});
+
+  /// Set when the app was opened from a product link
+  /// (humavolve://huma-volve.com/product/{id}). The product details screen
+  /// is opened on top of the first screen after the splash.
+  final int? deepLinkProductId;
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -26,18 +32,24 @@ class _SplashScreenState extends State<SplashScreen> {
       (failure) => false,
       (loggedIn) => loggedIn,
     );
-    if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => isLoggedIn
-              ? const MainNavigationScreen()
-              : const LoginScreen(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-        ),
-      );
+    if (!mounted) return;
+    final navigator = Navigator.of(context);
+    navigator.pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => isLoggedIn
+            ? const MainNavigationScreen()
+            : const LoginScreen(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
+    );
+
+    // Opened from a deep link: show the product on top, so the back button
+    // goes to the home (or login) screen.
+    final productId = widget.deepLinkProductId;
+    if (productId != null) {
+      navigator.pushNamed(AppRoutes.productDetails(productId));
     }
   }
 

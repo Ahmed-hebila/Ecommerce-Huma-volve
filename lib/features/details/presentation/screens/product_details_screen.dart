@@ -1,20 +1,152 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme.dart';
-import '../../../core/widgets/network_image_box.dart';
-import '../../../core/widgets/primary_button.dart';
-import '../../home/domain/entities/product_entity.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-class ProductDetailsScreen extends StatefulWidget {
-  final ProductEntity product;
+import '../../../../core/di/injection.dart';
+import '../../../../core/routing/app_routes.dart';
+import '../../../../core/theme.dart';
+import '../../../../core/widgets/app_snack_bar.dart';
+import '../../../../core/widgets/network_image_box.dart';
+import '../../../../core/widgets/primary_button.dart';
+import '../../../home/domain/entities/product_entity.dart';
+import '../cubit/product_details_cubit.dart';
+import '../cubit/product_details_state.dart';
 
-  const ProductDetailsScreen({super.key, required this.product});
+/// Product details. Opened from the home list (with [initialProduct]) or
+/// from a deep link like `humavolve://huma-volve.com/product/5` (only the
+/// [productId] is known, so the product is loaded from the API).
+class ProductDetailsScreen extends StatelessWidget {
+  const ProductDetailsScreen({
+    super.key,
+    required this.productId,
+    this.initialProduct,
+  });
+
+  final int productId;
+
+  /// The product already loaded in the home list, so it shows at once.
+  final ProductEntity? initialProduct;
 
   @override
-  State<ProductDetailsScreen> createState() => _ProductDetailsScreenState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) => Injection.productDetailsCubit(
+        productId: productId,
+        initialProduct: initialProduct,
+      )..loadIfNeeded(),
+      child: BlocBuilder<ProductDetailsCubit, ProductDetailsState>(
+        builder: (context, state) {
+          if (state is ProductDetailsLoaded) {
+            return _ProductDetailsView(product: state.product);
+          }
+          if (state is ProductDetailsError) {
+            return _MessageScaffold(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    color: AppTheme.error,
+                    size: 48,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    state.errorMessage,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey.shade700),
+                  ),
+                  TextButton(
+                    onPressed: context.read<ProductDetailsCubit>().loadProduct,
+                    child: const Text('Try again'),
+                  ),
+                ],
+              ),
+            );
+          }
+          return const _MessageScaffold(
+            child: CircularProgressIndicator(color: AppTheme.primary),
+          );
+        },
+      ),
+    );
+  }
 }
 
-class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
+/// A page with a back button and [child] in the center
+/// (used for the loading and error states).
+class _MessageScaffold extends StatelessWidget {
+  const _MessageScaffold({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.background,
+      appBar: AppBar(
+        backgroundColor: AppTheme.background,
+        elevation: 0,
+        leading: const _CircleIconButton(
+          icon: Icons.arrow_back_ios_new,
+          iconSize: 16,
+        ),
+      ),
+      body: Center(
+        child: Padding(padding: const EdgeInsets.all(24), child: child),
+      ),
+    );
+  }
+}
+
+/// The white round buttons on top of the product image.
+/// Without [onPressed] the button goes back.
+class _CircleIconButton extends StatelessWidget {
+  const _CircleIconButton({
+    required this.icon,
+    this.onPressed,
+    this.iconSize = 18,
+  });
+
+  final IconData icon;
+  final VoidCallback? onPressed;
+  final double iconSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      icon: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.9),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, size: iconSize),
+      ),
+      onPressed: onPressed ?? () => Navigator.maybePop(context),
+    );
+  }
+}
+
+class _ProductDetailsView extends StatefulWidget {
+  const _ProductDetailsView({required this.product});
+
+  final ProductEntity product;
+
+  @override
+  State<_ProductDetailsView> createState() => _ProductDetailsViewState();
+}
+
+class _ProductDetailsViewState extends State<_ProductDetailsView> {
   int _currentImage = 0;
+
+  /// Copies the deep link of this product so it can be shared. Opening it
+  /// on a phone with the app installed shows this product in the app.
+  Future<void> _copyProductLink() async {
+    final link = DeepLinks.product(widget.product.id).toString();
+    await Clipboard.setData(ClipboardData(text: link));
+    if (!mounted) return;
+    showAppSnackBar(context, 'Product link copied: $link', isError: false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,29 +161,13 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
             expandedHeight: 400,
             pinned: true,
             backgroundColor: AppTheme.background,
-            leading: IconButton(
-              icon: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.9),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.arrow_back_ios_new, size: 16),
-              ),
-              onPressed: () => Navigator.pop(context),
+            leading: const _CircleIconButton(
+              icon: Icons.arrow_back_ios_new,
+              iconSize: 16,
             ),
             actions: [
-              IconButton(
-                icon: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.9),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.favorite_border, size: 18),
-                ),
-                onPressed: () {},
-              ),
+              _CircleIconButton(icon: Icons.link, onPressed: _copyProductLink),
+              _CircleIconButton(icon: Icons.favorite_border, onPressed: () {}),
               const SizedBox(width: 8),
             ],
             flexibleSpace: FlexibleSpaceBar(

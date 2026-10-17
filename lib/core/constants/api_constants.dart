@@ -22,6 +22,9 @@ class ApiConstants {
   static String categoryProducts(int categoryId) =>
       '$categories/$categoryId/$products';
 
+  /// `products/{id}`
+  static String productDetails(int productId) => '$products/$productId';
+
   // Pagination query parameters: `?offset=0&limit=10`
   static const String offsetParam = 'offset';
   static const String limitParam = 'limit';
