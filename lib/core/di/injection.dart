@@ -9,8 +9,14 @@ import '../../features/auth/domain/usecases/logout_usecase.dart';
 import '../../features/auth/domain/usecases/sign_up_usecase.dart';
 import '../../features/auth/presentation/cubit/login_cubit.dart';
 import '../../features/auth/presentation/cubit/sign_up_cubit.dart';
+import '../../features/details/data/datasources/product_details_remote_data_source.dart';
+import '../../features/details/data/repositories/product_details_repository_impl.dart';
+import '../../features/details/domain/repositories/product_details_repository.dart';
+import '../../features/details/domain/usecases/get_product_details_usecase.dart';
+import '../../features/details/presentation/cubit/product_details_cubit.dart';
 import '../../features/home/data/datasources/home_remote_data_source.dart';
 import '../../features/home/data/repositories/home_repository_impl.dart';
+import '../../features/home/domain/entities/product_entity.dart';
 import '../../features/home/domain/repositories/home_repository.dart';
 import '../../features/home/domain/usecases/get_categories_usecase.dart';
 import '../../features/home/domain/usecases/get_products_usecase.dart';
@@ -61,6 +67,14 @@ class Injection {
     homeRepository,
   );
 
+  // Product details
+  static final ProductDetailsRemoteDataSource productDetailsRemoteDataSource =
+      ProductDetailsRemoteDataSourceImpl(apiClient.dio);
+  static final ProductDetailsRepository productDetailsRepository =
+      ProductDetailsRepositoryImpl(productDetailsRemoteDataSource);
+  static final GetProductDetailsUseCase getProductDetailsUseCase =
+      GetProductDetailsUseCase(productDetailsRepository);
+
   // Cubits: a new instance every time a screen needs one.
   static LoginCubit loginCubit() => LoginCubit(loginUseCase);
 
@@ -69,6 +83,15 @@ class Injection {
   static HomeCubit homeCubit() => HomeCubit(
     getCategoriesUseCase: getCategoriesUseCase,
     getProductsUseCase: getProductsUseCase,
+  );
+
+  static ProductDetailsCubit productDetailsCubit({
+    required int productId,
+    ProductEntity? initialProduct,
+  }) => ProductDetailsCubit(
+    getProductDetailsUseCase: getProductDetailsUseCase,
+    productId: productId,
+    initialProduct: initialProduct,
   );
 
   static ProfileCubit profileCubit() => ProfileCubit(

@@ -1,30 +1,53 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:ecommerce_app_huma_volve/main.dart';
+import 'package:ecommerce_app_huma_volve/core/routing/app_router.dart';
+import 'package:ecommerce_app_huma_volve/core/routing/app_routes.dart';
+import 'package:ecommerce_app_huma_volve/core/routing/not_found_screen.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  TestWidgetsFlutterBinding.ensureInitialized();
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  group('AppRouter', () {
+    test('builds the product details route for /product/{id}', () {
+      final route = AppRouter.onGenerateRoute(
+        const RouteSettings(name: '/product/5'),
+      );
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+      expect(route, isA<MaterialPageRoute<void>>());
+      expect(route?.settings.name, '/product/5');
+    });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    test('returns null for other routes so onUnknownRoute handles them', () {
+      expect(
+        AppRouter.onGenerateRoute(const RouteSettings(name: '/cart')),
+        isNull,
+      );
+    });
+
+    test('a deep link still starts the app on the splash screen', () {
+      final routes = AppRouter.onGenerateInitialRoutes(
+        DeepLinks.product(5).toString(),
+      );
+
+      expect(routes, hasLength(1));
+      expect(routes.single.settings.name, AppRoutes.splash);
+    });
+  });
+
+  testWidgets('an unknown link shows the not found screen', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        initialRoute: '/does-not-exist',
+        onGenerateRoute: AppRouter.onGenerateRoute,
+        onUnknownRoute: AppRouter.onUnknownRoute,
+        onGenerateInitialRoutes: (initialRoute) => [
+          AppRouter.onUnknownRoute(RouteSettings(name: initialRoute)),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(NotFoundScreen.title), findsOneWidget);
   });
 }

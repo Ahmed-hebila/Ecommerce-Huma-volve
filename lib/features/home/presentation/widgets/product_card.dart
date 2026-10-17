@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../../../core/routing/app_routes.dart';
 import '../../../../core/theme.dart';
 import '../../../../core/widgets/network_image_box.dart';
-import '../../../details/screens/product_details_screen.dart';
+import '../../../details/presentation/screens/product_details_screen.dart';
 import '../../domain/entities/product_entity.dart';
 
 class ProductCard extends StatelessWidget {
@@ -16,9 +17,16 @@ class ProductCard extends StatelessWidget {
         Navigator.push(
           context,
           PageRouteBuilder(
+            // Same route name as the deep link: /product/{id}
+            settings: RouteSettings(
+              name: AppRoutes.productDetails(product.id),
+            ),
             transitionDuration: const Duration(milliseconds: 500),
-            pageBuilder: (context, animation, secondaryAnimation) => 
-                ProductDetailsScreen(product: product),
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                ProductDetailsScreen(
+                  productId: product.id,
+                  initialProduct: product,
+                ),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
               return FadeTransition(opacity: animation, child: child);
             },
