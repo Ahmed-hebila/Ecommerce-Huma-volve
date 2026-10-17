@@ -1,18 +1,14 @@
-/// A user returned by `POST users/` and `GET auth/profile`.
-class UserModel {
-  const UserModel({
-    required this.id,
-    required this.name,
-    required this.email,
-    required this.role,
-    required this.avatar,
-  });
+import '../../domain/entities/user_entity.dart';
 
-  final int id;
-  final String name;
-  final String email;
-  final String role;
-  final String avatar;
+/// [UserEntity] + JSON parsing for `POST users/` and `GET auth/profile`.
+class UserModel extends UserEntity {
+  const UserModel({
+    required super.id,
+    required super.name,
+    required super.email,
+    required super.role,
+    required super.avatar,
+  });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(

@@ -3,9 +3,15 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:ecommerce_app_huma_volve/core/network/api_exception.dart';
 import 'package:ecommerce_app_huma_volve/core/utils/validators.dart';
-import 'package:ecommerce_app_huma_volve/features/auth/data/models/auth_tokens.dart';
-import 'package:ecommerce_app_huma_volve/features/auth/data/models/sign_up_request.dart';
+import 'package:ecommerce_app_huma_volve/features/auth/data/datasources/auth_local_data_source.dart';
+import 'package:ecommerce_app_huma_volve/features/auth/data/datasources/auth_remote_data_source.dart';
+import 'package:ecommerce_app_huma_volve/features/auth/data/models/auth_tokens_model.dart';
+import 'package:ecommerce_app_huma_volve/features/auth/data/models/sign_up_request_model.dart';
 import 'package:ecommerce_app_huma_volve/features/auth/data/models/user_model.dart';
+import 'package:ecommerce_app_huma_volve/features/auth/data/repositories/auth_repository_impl.dart';
+import 'package:ecommerce_app_huma_volve/features/auth/domain/usecases/login_usecase.dart';
+import 'package:ecommerce_app_huma_volve/features/auth/presentation/cubit/login_cubit.dart';
+import 'package:ecommerce_app_huma_volve/features/auth/presentation/cubit/login_state.dart';
 
 DioException _badResponse(int statusCode, dynamic data) {
   final options = RequestOptions(path: 'test');
@@ -18,6 +24,87 @@ DioException _badResponse(int statusCode, dynamic data) {
       data: data,
     ),
   );
+}
+
+/// In-memory replacements for the data sources, so the repository and
+/// cubit can be tested without the API or secure storage.
+class FakeAuthRemoteDataSource implements AuthRemoteDataSource {
+  String validPassword = 'changeme';
+  bool emailAvailable = true;
+  bool expiredAccessToken = false;
+  int refreshCalls = 0;
+
+  static const tokens = AuthTokensModel(
+    accessToken: 'access',
+    refreshToken: 'refresh',
+  );
+  static const user = UserModel(
+    id: 1,
+    name: 'Ahmed',
+    email: 'ahmed@mail.com',
+    role: 'customer',
+    avatar: '',
+  );
+
+  @override
+  Future<AuthTokensModel> login({
+    required String email,
+    required String password,
+  }) async {
+    if (password != validPassword) {
+      throw const ApiException('Unauthorized', statusCode: 401);
+    }
+    return tokens;
+  }
+
+  @override
+  Future<bool> isEmailAvailable(String email) async => emailAvailable;
+
+  @override
+  Future<UserModel> signUp(SignUpRequestModel request) async => user;
+
+  @override
+  Future<UserModel> getProfile(String accessToken) async {
+    if (expiredAccessToken && accessToken == 'access') {
+      throw const ApiException('Unauthorized', statusCode: 401);
+    }
+    return user;
+  }
+
+  @override
+  Future<AuthTokensModel> refreshToken(String refreshToken) async {
+    refreshCalls++;
+    return const AuthTokensModel(
+      accessToken: 'new-access',
+      refreshToken: 'new-refresh',
+    );
+  }
+}
+
+class FakeAuthLocalDataSource implements AuthLocalDataSource {
+  String? accessToken;
+  String? refreshToken;
+
+  @override
+  Future<void> saveTokens(AuthTokensModel tokens) async {
+    accessToken = tokens.accessToken;
+    refreshToken = tokens.refreshToken;
+  }
+
+  @override
+  Future<String?> getAccessToken() async => accessToken;
+
+  @override
+  Future<String?> getRefreshToken() async => refreshToken;
+
+  @override
+  Future<bool> hasAccessToken() async => accessToken != null;
+
+  @override
+  Future<void> clearTokens() async {
+    accessToken = null;
+    refreshToken = null;
+  }
 }
 
 void main() {
@@ -47,8 +134,8 @@ void main() {
   });
 
   group('Models', () {
-    test('AuthTokens.fromJson', () {
-      final tokens = AuthTokens.fromJson({
+    test('AuthTokensModel.fromJson', () {
+      final tokens = AuthTokensModel.fromJson({
         'access_token': 'access',
         'refresh_token': 'refresh',
       });
@@ -69,8 +156,8 @@ void main() {
       expect(user.email, 'john@mail.com');
     });
 
-    test('SignUpRequest.toJson sends a default avatar', () {
-      const request = SignUpRequest(
+    test('SignUpRequestModel.toJson sends a default avatar', () {
+      const request = SignUpRequestModel(
         name: 'Ahmed',
         email: 'ahmed@mail.com',
         password: 'abc123',
@@ -110,6 +197,90 @@ void main() {
         ),
       );
       expect(exception.message, contains('internet'));
+    });
+  });
+
+  group('AuthRepositoryImpl', () {
+    late FakeAuthRemoteDataSource remote;
+    late FakeAuthLocalDataSource local;
+    late AuthRepositoryImpl repository;
+
+    setUp(() {
+      remote = FakeAuthRemoteDataSource();
+      local = FakeAuthLocalDataSource();
+      repository = AuthRepositoryImpl(
+        remoteDataSource: remote,
+        localDataSource: local,
+      );
+    });
+
+    test('login saves the tokens', () async {
+      final result = await repository.login(
+        email: 'ahmed@mail.com',
+        password: 'changeme',
+      );
+      expect(result.isSuccess, isTrue);
+      expect(local.accessToken, 'access');
+      expect((await repository.isLoggedIn()).fold((_) => false, (v) => v),
+          isTrue);
+    });
+
+    test('wrong password returns a readable failure', () async {
+      final result = await repository.login(
+        email: 'ahmed@mail.com',
+        password: 'wrong123',
+      );
+      final message = result.fold((failure) => failure.message, (_) => '');
+      expect(message, 'Incorrect email or password.');
+      expect(local.accessToken, isNull);
+    });
+
+    test('sign up fails when the email is already used', () async {
+      remote.emailAvailable = false;
+      final result = await repository.signUp(
+        name: 'Ahmed',
+        email: 'ahmed@mail.com',
+        password: 'abc123',
+      );
+      final message = result.fold((failure) => failure.message, (_) => '');
+      expect(message, contains('already exists'));
+    });
+
+    test('getProfile refreshes an expired token once', () async {
+      await local.saveTokens(FakeAuthRemoteDataSource.tokens);
+      remote.expiredAccessToken = true;
+
+      final result = await repository.getProfile();
+
+      expect(result.isSuccess, isTrue);
+      expect(remote.refreshCalls, 1);
+      expect(local.accessToken, 'new-access');
+    });
+
+    test('logout clears the tokens', () async {
+      await local.saveTokens(FakeAuthRemoteDataSource.tokens);
+      await repository.logout();
+      expect(local.accessToken, isNull);
+    });
+  });
+
+  group('LoginCubit', () {
+    test('emits Loading then Failure for a wrong password', () async {
+      final repository = AuthRepositoryImpl(
+        remoteDataSource: FakeAuthRemoteDataSource(),
+        localDataSource: FakeAuthLocalDataSource(),
+      );
+      final cubit = LoginCubit(LoginUseCase(repository));
+      final states = <LoginState>[];
+      final subscription = cubit.stream.listen(states.add);
+
+      await cubit.login(email: 'ahmed@mail.com', password: 'wrong123');
+      await Future<void>.delayed(Duration.zero);
+
+      expect(states.first, isA<LoginLoading>());
+      expect(states.last, isA<LoginFailure>());
+      await subscription.cancel();
+      await cubit.close();
     });
   });
 }

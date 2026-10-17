@@ -1,45 +1,56 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:ecommerce_app_huma_volve/core/network/api_client.dart';
-import 'package:ecommerce_app_huma_volve/core/network/api_exception.dart';
-import 'package:ecommerce_app_huma_volve/features/home/cubit/home_cubit.dart';
-import 'package:ecommerce_app_huma_volve/features/home/cubit/home_state.dart';
-import 'package:ecommerce_app_huma_volve/features/home/models/category_model.dart';
-import 'package:ecommerce_app_huma_volve/features/home/models/product_model.dart';
-import 'package:ecommerce_app_huma_volve/features/home/services/home_service.dart';
+import 'package:ecommerce_app_huma_volve/core/error/failure.dart';
+import 'package:ecommerce_app_huma_volve/core/utils/result.dart';
+import 'package:ecommerce_app_huma_volve/features/home/data/models/category_model.dart';
+import 'package:ecommerce_app_huma_volve/features/home/data/models/product_model.dart';
+import 'package:ecommerce_app_huma_volve/features/home/domain/entities/category_entity.dart';
+import 'package:ecommerce_app_huma_volve/features/home/domain/entities/product_entity.dart';
+import 'package:ecommerce_app_huma_volve/features/home/domain/repositories/home_repository.dart';
+import 'package:ecommerce_app_huma_volve/features/home/domain/usecases/get_categories_usecase.dart';
+import 'package:ecommerce_app_huma_volve/features/home/domain/usecases/get_products_usecase.dart';
+import 'package:ecommerce_app_huma_volve/features/home/presentation/cubit/home_cubit.dart';
+import 'package:ecommerce_app_huma_volve/features/home/presentation/cubit/home_state.dart';
 
-/// A HomeService that returns fixed data instead of calling the API.
-class FakeHomeService extends HomeService {
-  FakeHomeService({this.failCategories = false}) : super(ApiClient.instance);
+/// A HomeRepository that returns fixed data instead of calling the API.
+class FakeHomeRepository implements HomeRepository {
+  FakeHomeRepository({this.failCategories = false});
 
   final bool failCategories;
   final List<int> requestedCategoryIds = [];
 
   @override
-  Future<List<CategoryModel>> getCategories() async {
+  Future<Result<List<CategoryEntity>>> getCategories() async {
     if (failCategories) {
-      throw const ApiException('No internet connection.');
+      return const Result.failure(Failure('No internet connection.'));
     }
-    return const [
-      CategoryModel(id: 1, name: 'Clothes'),
-      CategoryModel(id: 2, name: 'Electronics'),
-    ];
+    return const Result.success([
+      CategoryEntity(id: 1, name: 'Clothes'),
+      CategoryEntity(id: 2, name: 'Electronics'),
+    ]);
   }
 
   @override
-  Future<List<ProductModel>> getProducts({required int categoryId}) async {
+  Future<Result<List<ProductEntity>>> getProducts({
+    required int categoryId,
+  }) async {
     requestedCategoryIds.add(categoryId);
-    return [
-      ProductModel(
+    return Result.success([
+      ProductEntity(
         id: categoryId * 10,
         title: 'Product of $categoryId',
         price: 10,
         description: '',
         images: const [],
       ),
-    ];
+    ]);
   }
 }
+
+HomeCubit _buildCubit(FakeHomeRepository repository) => HomeCubit(
+  getCategoriesUseCase: GetCategoriesUseCase(repository),
+  getProductsUseCase: GetProductsUseCase(repository),
+);
 
 Future<List<HomeState>> _collectStates(
   HomeCubit cubit,
@@ -82,8 +93,8 @@ void main() {
   group('HomeCubit', () {
     test('loadHomeData loads categories then the first category products',
         () async {
-      final service = FakeHomeService();
-      final cubit = HomeCubit(service);
+      final repository = FakeHomeRepository();
+      final cubit = _buildCubit(repository);
 
       final states = await _collectStates(cubit, cubit.loadHomeData);
 
@@ -94,13 +105,13 @@ void main() {
         ProductsSuccess,
       ]);
       expect((states[1] as CategoriesSuccess).categories.length, 2);
-      expect(service.requestedCategoryIds, [1]);
+      expect(repository.requestedCategoryIds, [1]);
       await cubit.close();
     });
 
     test('getProducts loads the selected category', () async {
-      final service = FakeHomeService();
-      final cubit = HomeCubit(service);
+      final repository = FakeHomeRepository();
+      final cubit = _buildCubit(repository);
 
       final states = await _collectStates(
         cubit,
@@ -114,7 +125,7 @@ void main() {
     });
 
     test('emits CategoriesError when the request fails', () async {
-      final cubit = HomeCubit(FakeHomeService(failCategories: true));
+      final cubit = _buildCubit(FakeHomeRepository(failCategories: true));
 
       final states = await _collectStates(cubit, cubit.loadHomeData);
 
