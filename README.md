@@ -8,6 +8,7 @@ A cross-platform e-commerce app built with Flutter and Dart as part of the Huma-
 - Secure access and refresh token storage with `flutter_secure_storage` and session restoration.
 - User profile, token refresh, and logout.
 - Category and product browsing with `flutter_bloc` Cubit state management.
+- Infinite scroll pagination for the home products (10 per page), with a loader, retry on failure, and an end-of-list message.
 - Clean Architecture (data / domain / presentation) for the auth and home features.
 - Product details with image gallery, category, price, and description.
 - Loading, empty, and error states, plus pull-to-refresh.
@@ -23,7 +24,7 @@ Uses the [Platzi Fake Store API](https://api.escuelajs.co/docs).
 | Current user | `GET auth/profile` |
 | Refresh session | `POST auth/refresh-token` |
 | Categories | `GET categories` |
-| Products by category | `GET categories/{id}/products` |
+| Products by category (paginated) | `GET categories/{id}/products?offset={offset}&limit=10` |
 
 ## Architecture
 
@@ -63,6 +64,16 @@ lib/
     │   └── presentation/  # cubit, screens, widgets
     └── profile/presentation/  # ProfileCubit uses the auth use cases
 ```
+
+## Pagination
+
+The home screen loads products page by page instead of the whole category at once:
+
+1. Selecting a category loads the first page (`offset=0&limit=10`).
+2. When the user scrolls close to the end of the grid, `HomeCubit.loadMoreProducts()` asks for the next page (`offset` = products loaded so far) and adds it under the grid.
+3. A page smaller than 10 means every product is loaded, so no more requests are sent.
+
+`ProductsSuccess` carries the loaded products plus `hasMore`, `isLoadingMore` and `loadMoreError`, so the screen can show a loader, a retry button or an end-of-list message under the grid. Requests that finish after the user switched category are ignored, and products already shown are never added twice.
 
 ## Run locally
 
