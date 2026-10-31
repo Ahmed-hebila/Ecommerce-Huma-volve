@@ -43,6 +43,7 @@ class CartItemCard extends StatelessWidget {
                 Text(
                   cartItem.product.name,
                   style: const TextStyle(
+                    color: AppTheme.textPrimary,
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                   ),

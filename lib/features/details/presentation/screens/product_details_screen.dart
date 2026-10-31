@@ -170,6 +170,18 @@ class _ProductDetailsViewState extends State<_ProductDetailsView> {
               _CircleIconButton(icon: Icons.favorite_border, onPressed: () {}),
               const SizedBox(width: 8),
             ],
+            // The white sheet's rounded top sits over the image here: a negative offset on the
+            // content below would be hidden, because the app bar paints above later slivers.
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(32),
+              child: Container(
+                height: 32,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                ),
+              ),
+            ),
             flexibleSpace: FlexibleSpaceBar(
               background: Stack(
                 fit: StackFit.expand,
@@ -221,13 +233,9 @@ class _ProductDetailsViewState extends State<_ProductDetailsView> {
           ),
           SliverToBoxAdapter(
             child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-              ),
-              transform: Matrix4.translationValues(0.0, -32.0, 0.0),
+              color: Colors.white,
               child: Padding(
-                padding: const EdgeInsets.all(24.0),
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

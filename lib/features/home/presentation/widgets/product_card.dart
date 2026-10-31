@@ -94,6 +94,7 @@ class ProductCard extends StatelessWidget {
                     Text(
                       product.title,
                       style: const TextStyle(
+                        color: AppTheme.textPrimary,
                         fontWeight: FontWeight.w600,
                         fontSize: 16,
                         height: 1.2,
