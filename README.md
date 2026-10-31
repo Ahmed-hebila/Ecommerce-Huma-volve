@@ -2,6 +2,12 @@
 
 A cross-platform e-commerce app built with Flutter and Dart as part of the Huma-volve training project. It connects to the Platzi Fake Store API for authentication, categories, and products.
 
+![Flutter](https://img.shields.io/badge/Flutter-02569B?logo=flutter&logoColor=white)
+![Dart](https://img.shields.io/badge/Dart-0175C2?logo=dart&logoColor=white)
+![Bloc / Cubit](https://img.shields.io/badge/Bloc%20%2F%20Cubit-13B9FD)
+![Clean Architecture](https://img.shields.io/badge/Clean%20Architecture-444)
+![Dio](https://img.shields.io/badge/Dio-0A7EA4)
+
 ## Features
 
 - Login and sign-up with form validation and readable API error messages.
@@ -126,3 +132,8 @@ The API provides this demo account:
 - Password: `changeme`
 
 Authentication and product data depend on the external demo API.
+
+## Author
+
+**Ahmed Hebila** — Flutter & Node.js developer
+[Portfolio](https://ahmedhebila.vercel.app) · [LinkedIn](https://www.linkedin.com/in/ahmed-hebila) · [GitHub](https://github.com/Ahmed-hebila)
